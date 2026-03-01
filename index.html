@@ -2351,34 +2351,139 @@
         // DOM CONTENT LOADED - INIT
         document.addEventListener("DOMContentLoaded", function () {
 
-            // LENIS SMOOTH SCROLL INITIALIZATION
-            const lenis = new Lenis({
-                autoRAID: true,
-                duration: 1.2,
-                easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-                smooth: true,
-                smoothTouch: true,
-                touchMultiplier: 1.8,
-                wheelMultiplier: 0.8,
-                infinite: false,
-                gestureOrientation: "vertical",
-                lerp: 0.08,
-                syncTouch: true,
-                syncTouchLerp: 0.08,
-                autoResize: true,
-                wrapper: window,
-                content: document.documentElement,
-                wheelEventsTarget: window,
-                touchEventsTarget: window,
-            });
+            // ===== DYNAMIC LENIS SMOOTH SCROLL (ADAPTIVE TO SCREEN SIZE) =====
+            let lenis = null;
+            let rafId = null;
 
-            document.body.classList.add("lenis", "lenis-smooth");
-
-            function raf(time) {
-                lenis.raf(time);
-                requestAnimationFrame(raf);
+            // Helper to update active navigation link (used in scroll handler)
+            function updateActiveNavLink(scroll) {
+                const sections = document.querySelectorAll("section");
+                const navLinks = document.querySelectorAll(".nav-links a");
+                let current = "";
+                sections.forEach((section) => {
+                    if (scroll >= section.offsetTop - 200)
+                        current = section.getAttribute("id");
+                });
+                navLinks.forEach((link) => {
+                    link.classList.remove("active");
+                    if (link.getAttribute("href") === `#${current}`)
+                        link.classList.add("active");
+                });
             }
-            requestAnimationFrame(raf);
+
+            // Return Lenis options based on current window width
+            function getLenisOptions() {
+                const width = window.innerWidth;
+                if (width < 768) {
+                    // Mobile: faster, more responsive, with overscroll bounce
+                    return {
+                        autoRaf: true,
+                        duration: 0.6,               // shorter animation = faster response
+                        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+                        smooth: true,
+                        smoothTouch: true,
+                        touchMultiplier: 2.5,         // scroll further per touch move
+                        wheelMultiplier: 1.0,
+                        lerp: 0.06,                   // lower = more responsive (less lag)
+                        syncTouch: true,
+                        syncTouchLerp: 0.06,
+                        autoResize: true,
+                        wrapper: window,
+                        content: document.documentElement,
+                        wheelEventsTarget: window,
+                        touchEventsTarget: window,
+                        overscroll: true,              // enables bounce at top/bottom
+                    };
+                } else if (width < 1024) {
+                    // Tablet: balanced settings
+                    return {
+                        autoRaf: true,
+                        duration: 0.9,
+                        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+                        smooth: true,
+                        smoothTouch: true,
+                        touchMultiplier: 2.0,
+                        wheelMultiplier: 0.9,
+                        lerp: 0.08,
+                        syncTouch: true,
+                        syncTouchLerp: 0.08,
+                        autoResize: true,
+                        wrapper: window,
+                        content: document.documentElement,
+                        wheelEventsTarget: window,
+                        touchEventsTarget: window,
+                        overscroll: true,
+                    };
+                } else {
+                    // Desktop: original slower smooth (like before)
+                    return {
+                        autoRaf: true,
+                        duration: 1.2,
+                        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+                        smooth: true,
+                        smoothTouch: true,
+                        touchMultiplier: 1.8,
+                        wheelMultiplier: 0.8,
+                        lerp: 0.08,
+                        syncTouch: true,
+                        syncTouchLerp: 0.08,
+                        autoResize: true,
+                        wrapper: window,
+                        content: document.documentElement,
+                        wheelEventsTarget: window,
+                        touchEventsTarget: window,
+                        overscroll: false,
+                    };
+                }
+            }
+
+            // Initialize (or re‑initialize) Lenis with given options
+            function initLenis(options) {
+                if (lenis) {
+                    lenis.destroy();
+                    if (rafId) cancelAnimationFrame(rafId);
+                }
+
+                lenis = new Lenis(options);
+                document.body.classList.add("lenis", "lenis-smooth");
+
+                // Attach scroll event handler (header, active nav, scroll‑to‑top button)
+                lenis.on("scroll", ({ scroll }) => {
+                    const header = document.getElementById("header");
+                    if (header) {
+                        header.classList.toggle("scrolled", scroll > 100);
+                    }
+                    updateActiveNavLink(scroll);
+                    const scrollToTopBtn = document.getElementById("scrollToTop");
+                    if (scrollToTopBtn) {
+                        scrollToTopBtn.style.display = scroll > 500 ? "flex" : "none";
+                    }
+                });
+
+                // Start the animation loop
+                function raf(time) {
+                    lenis.raf(time);
+                    rafId = requestAnimationFrame(raf);
+                }
+                rafId = requestAnimationFrame(raf);
+
+                // Notify GSAP ScrollTrigger that the scroller may have changed
+                if (typeof ScrollTrigger !== "undefined") {
+                    ScrollTrigger.refresh();
+                }
+            }
+
+            // Initialise with current screen size
+            initLenis(getLenisOptions());
+
+            // Re‑initialise on window resize (debounced)
+            let resizeTimer;
+            window.addEventListener("resize", () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    initLenis(getLenisOptions());
+                }, 200);
+            });
 
             // HELPER FUNCTIONS
             function updateLenis() {
@@ -2421,33 +2526,6 @@
                     }
                     updateLenis();
                 });
-            });
-
-            // SCROLL EVENT HANDLERS (header, active nav, scroll to top)
-            function updateActiveNavLink(scroll) {
-                const sections = document.querySelectorAll("section");
-                const navLinks = document.querySelectorAll(".nav-links a");
-                let current = "";
-                sections.forEach((section) => {
-                    if (scroll >= section.offsetTop - 200)
-                        current = section.getAttribute("id");
-                });
-                navLinks.forEach((link) => {
-                    link.classList.remove("active");
-                    if (link.getAttribute("href") === `#${current}`)
-                        link.classList.add("active");
-                });
-            }
-
-            lenis.on("scroll", ({ scroll }) => {
-                const header = document.getElementById("header");
-                if (header) {
-                    header.classList.toggle("scrolled", scroll > 100);
-                }
-                updateActiveNavLink(scroll);
-                const scrollToTopBtn = document.getElementById("scrollToTop");
-                if (scrollToTopBtn)
-                    scrollToTopBtn.style.display = scroll > 500 ? "flex" : "none";
             });
 
             // GSAP + SCROLLTRIGGER SETUP AND ANIMATIONS
@@ -2929,7 +3007,7 @@
             window.addEventListener("resize", () => updateLenis());
             updateLenis();
             setTimeout(() => updateLenis(), 1000);
-            // console.log("Portfolio initialized with Lenis smooth scrolling!");
+            // console.log("Portfolio initialized with adaptive Lenis smooth scrolling!");
         });
     </script>
 </body>
