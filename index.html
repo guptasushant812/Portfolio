@@ -2392,6 +2392,8 @@
                         content: document.documentElement,
                         wheelEventsTarget: window,
                         touchEventsTarget: window,
+                        gestureOrientation: "vertical",
+                        infinite: false,
                         // overscroll: true,              // enables bounce at top/bottom
                     };
                 } else if (width < 1024) {
@@ -2412,6 +2414,8 @@
                         content: document.documentElement,
                         wheelEventsTarget: window,
                         touchEventsTarget: window,
+                        gestureOrientation: "vertical",
+                        infinite: false,
                         // overscroll: true,
                     };
                 } else {
@@ -2424,6 +2428,8 @@
                         smoothTouch: true,
                         touchMultiplier: 1.8,
                         wheelMultiplier: 0.8,
+                        gestureOrientation: "vertical",
+                        infinite: false,
                         lerp: 0.08,
                         syncTouch: true,
                         syncTouchLerp: 0.08,
