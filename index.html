@@ -25,8 +25,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/ScrollTrigger.min.js"></script>
     <script src="https://unpkg.com/lenis@1.3.17/dist/lenis.min.js"></script>
 
-    <!-- <link rel="stylesheet" href="css/style.css"> -->
-
     <style>
         /* CSS RESET & VARIABLES */
         * {
@@ -2345,17 +2343,14 @@
     </div>
     <!-- end lenis-container -->
 
-    <!-- <script src="js/main.js"></script> -->
-
     <script>
         // DOM CONTENT LOADED - INIT
         document.addEventListener("DOMContentLoaded", function () {
-
-            // ===== DYNAMIC LENIS SMOOTH SCROLL (ADAPTIVE TO SCREEN SIZE) =====
+            // ----- ADAPTIVE, OPTIMISED LENIS SMOOTH SCROLL -----
             let lenis = null;
-            let rafId = null;
+            let resizeTimer = null;
 
-            // Helper to update active navigation link (used in scroll handler)
+            // Helper to update active navigation link
             function updateActiveNavLink(scroll) {
                 const sections = document.querySelectorAll("section");
                 const navLinks = document.querySelectorAll(".nav-links a");
@@ -2375,16 +2370,16 @@
             function getLenisOptions() {
                 const width = window.innerWidth;
                 if (width < 768) {
-                    // Mobile: faster, more responsive, with overscroll bounce
+                    // Mobile: quick, responsive, with touch bounce
                     return {
-                        autoRaf: true,
-                        duration: 0.6,               // shorter animation = faster response
+                        autoRaf: true,               // Lenis manages its own rAF
+                        duration: 0.6,
                         easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
                         smooth: true,
                         smoothTouch: true,
-                        touchMultiplier: 2.5,         // scroll further per touch move
+                        touchMultiplier: 2.5,
                         wheelMultiplier: 1.0,
-                        lerp: 0.06,                   // lower = more responsive (less lag)
+                        lerp: 0.06,                   // more responsive
                         syncTouch: true,
                         syncTouchLerp: 0.06,
                         autoResize: true,
@@ -2394,10 +2389,9 @@
                         touchEventsTarget: window,
                         gestureOrientation: "vertical",
                         infinite: false,
-                        // overscroll: true,              // enables bounce at top/bottom
                     };
                 } else if (width < 1024) {
-                    // Tablet: balanced settings
+                    // Tablet: balanced
                     return {
                         autoRaf: true,
                         duration: 0.9,
@@ -2416,44 +2410,41 @@
                         touchEventsTarget: window,
                         gestureOrientation: "vertical",
                         infinite: false,
-                        // overscroll: true,
                     };
                 } else {
-                    // Desktop: original slower smooth (like before)
+                    // Desktop: classic smooth (slightly slower, elegant)
                     return {
                         autoRaf: true,
                         duration: 1.2,
                         easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
                         smooth: true,
                         smoothTouch: true,
-                        touchMultiplier: 1.8,
+                        touchMultiplier: 1.5,
                         wheelMultiplier: 0.8,
-                        gestureOrientation: "vertical",
-                        infinite: false,
-                        lerp: 0.08,
+                        lerp: 0.1,
                         syncTouch: true,
-                        syncTouchLerp: 0.08,
+                        syncTouchLerp: 0.1,
                         autoResize: true,
                         wrapper: window,
                         content: document.documentElement,
                         wheelEventsTarget: window,
                         touchEventsTarget: window,
-                        // overscroll: false,
+                        gestureOrientation: "vertical",
+                        infinite: false,
                     };
                 }
             }
 
-            // Initialize (or re‑initialize) Lenis with given options
-            function initLenis(options) {
+            // Initialise (or re‑initialise) Lenis
+            function initLenis() {
                 if (lenis) {
                     lenis.destroy();
-                    if (rafId) cancelAnimationFrame(rafId);
+                    lenis = null;
                 }
-
-                lenis = new Lenis(options);
+                lenis = new Lenis(getLenisOptions());
                 document.body.classList.add("lenis", "lenis-smooth");
 
-                // Attach scroll event handler (header, active nav, scroll‑to‑top button)
+                // Scroll event handler for header, active nav, scroll‑to‑top button
                 lenis.on("scroll", ({ scroll }) => {
                     const header = document.getElementById("header");
                     if (header) {
@@ -2466,34 +2457,28 @@
                     }
                 });
 
-                // Start the animation loop
-                function raf(time) {
-                    lenis.raf(time);
-                    rafId = requestAnimationFrame(raf);
-                }
-                rafId = requestAnimationFrame(raf);
-
-                // Notify GSAP ScrollTrigger that the scroller may have changed
+                // Update GSAP ScrollTrigger on every scroll
                 if (typeof ScrollTrigger !== "undefined") {
-                    ScrollTrigger.refresh();
+                    lenis.on("scroll", ScrollTrigger.update);
                 }
             }
 
-            // Initialise with current screen size
-            initLenis(getLenisOptions());
+            // Start with current screen size
+            initLenis();
 
-            // Re‑initialise on window resize (debounced)
-            let resizeTimer;
+            // Re‑initialise on resize (debounced)
             window.addEventListener("resize", () => {
                 clearTimeout(resizeTimer);
                 resizeTimer = setTimeout(() => {
-                    initLenis(getLenisOptions());
+                    initLenis();
                 }, 200);
             });
 
+            // ----- END OF LENIS SETUP -----
+
             // HELPER FUNCTIONS
             function updateLenis() {
-                setTimeout(() => lenis.resize(), 300);
+                setTimeout(() => lenis?.resize(), 300);
             }
 
             // MOBILE MENU TOGGLE
@@ -2551,9 +2536,9 @@
                     },
                     pinType: document.body.style.transform ? "transform" : "fixed",
                 });
-                lenis.on("scroll", ScrollTrigger.update);
-                gsap.ticker.add((time) => lenis.raf(time * 1000));
-                ScrollTrigger.addEventListener("refresh", () => lenis.resize());
+
+                // No need for gsap.ticker – Lenis autoRaf already runs
+                ScrollTrigger.addEventListener("refresh", () => lenis?.resize());
                 ScrollTrigger.refresh();
 
                 // Home section animations
@@ -2806,7 +2791,7 @@
                     el.innerHTML = `<img src="${skill.logo}" alt="${skill.name} logo" class="skill-logo" ${filterStyle}><h4>${skill.name}</h4>`;
                     skillsGrid.appendChild(el);
                 });
-                setTimeout(() => lenis.resize(), 100);
+                setTimeout(() => lenis?.resize(), 100);
             }
             renderAllSkills();
 
@@ -3013,7 +2998,6 @@
             window.addEventListener("resize", () => updateLenis());
             updateLenis();
             setTimeout(() => updateLenis(), 1000);
-            // console.log("Portfolio initialized with adaptive Lenis smooth scrolling!");
         });
     </script>
 </body>
