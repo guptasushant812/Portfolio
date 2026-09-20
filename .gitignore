@@ -1,0 +1,11 @@
+# Private / local email templates
+email-templates/
+
+# Unused images
+assets/images/profile-pic.png
+
+# System & IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
